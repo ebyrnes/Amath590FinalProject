@@ -19,28 +19,36 @@ for i = 1:k
     p = P(:, i);
     px = zeros(M-1,1);
     U = zeros(M-1,M-1);
-    Z = zeros(M-1,1);
+    Zpos = Vs + H(p);
+    Zneg = Vs + H(p);
 %Create px 
     for j = 2:M
         x = 2*(p(j+1)-p(j));
         y = (p(j+1)-p(j-1))/2;
         z = 2*(p(j)-p(j-1));
-        px(j-1) = minmod(x,y,z);
+        px(j) = minmod(x,y,z);
     end
 %create U
 %Need z_j = dx \sum_i W_{j-i}p_i  +H'(p_j) + V(x_j)
     
     for j = 2:M
         wc = sum(wconv(j-1:(j+m-1)));
-        Z(j-1) = wc;
+        Z = Zpos(j-1) + dx* wc;
+        if Z>0
+            Zpos(j-1) = Z;
+            Zneg(j-1)=0;
+        else 
+            Zpos(j-1) = 0;
+            Zneg(j-1)= Z;
+        end
     end
-    Z = dx*Z + Vs + H(p);
-    U = diag(Z) + diag(Z(),-1) + diag(Z(),1);%need to check shifts!-----------
+    Up = diag(Zpos(2:M+1)-Zneg(1:M)) - diag(Zpos(2:M+1),-1) + diag(Zneg(1:M),1); 
+    Upx = (-1)*diag(Zpos(2:M+1)-Zneg(1:M)) + diag(Zpos(2:M+1),-1) + diag(Zneg(1:M),1);
 %Solve for next time step
-    B = coeff*U;
-    A = eye(M) - B;
+    B = (dt/2) *Upx;
+    A = eye(M) - coeff*Up;
     pnew = A*p - B*px;
-    P(:,+1) = pnew;  
+    P(:,i+1) = pnew;  
 end
 
 
